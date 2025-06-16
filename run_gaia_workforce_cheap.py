@@ -32,43 +32,43 @@ def construct_agent_list() -> List[Dict[str, Any]]:
 
     web_model = ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
-        model_type=ModelType.GPT_4O,
+        model_type=ModelType.GPT_4O_MINI,
         model_config_dict={"temperature": 0},
     )
     
     document_processing_model = ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
-        model_type=ModelType.GPT_4O,
+        model_type=ModelType.GPT_4O_MINI,
         model_config_dict={"temperature": 0},
     )
     
     reasoning_model = ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
-        model_type=ModelType.O3_MINI,
+        model_type=ModelType.GPT_4O_MINI,
         model_config_dict={"temperature": 0},
     )
     
     image_analysis_model = ModelFactory.create( 
         model_platform=ModelPlatformType.OPENAI,
-        model_type=ModelType.GPT_4O,
+        model_type=ModelType.GPT_4O_MINI,
         model_config_dict={"temperature": 0},
     )
     
     audio_reasoning_model = ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
-        model_type=ModelType.O3_MINI,
+        model_type=ModelType.GPT_4O_MINI,
         model_config_dict={"temperature": 0},
     )
     
     web_agent_model = ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
-        model_type=ModelType.GPT_4O,
+        model_type=ModelType.GPT_4O_MINI,
         model_config_dict={"temperature": 0},
     )
     
     planning_agent_model = ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
-        model_type=ModelType.O3_MINI,
+        model_type=ModelType.GPT_4O_MINI,
         model_config_dict={"temperature": 0},
     )
     
@@ -168,7 +168,7 @@ def construct_workforce() -> OwlGaiaWorkforce:
     coordinator_agent_kwargs = {
         "model": ModelFactory.create(
             model_platform=ModelPlatformType.OPENAI,
-            model_type=ModelType.O3_MINI,
+            model_type=ModelType.GPT_4O_MINI,
             model_config_dict={"temperature": 0},
         )
     }
@@ -176,7 +176,7 @@ def construct_workforce() -> OwlGaiaWorkforce:
     task_agent_kwargs = {
         "model": ModelFactory.create(
             model_platform=ModelPlatformType.OPENAI,
-            model_type=ModelType.GPT_4O,
+            model_type=ModelType.GPT_4O_MINI,
             model_config_dict={"temperature": 0},
         )
     }
@@ -184,7 +184,7 @@ def construct_workforce() -> OwlGaiaWorkforce:
     answerer_agent_kwargs = {
         "model": ModelFactory.create(
             model_platform=ModelPlatformType.OPENAI,
-            model_type=ModelType.GPT_4O,
+            model_type=ModelType.GPT_4O_MINI,
             model_config_dict={"temperature": 0},
         )
     }
@@ -214,7 +214,7 @@ def evaluate_on_gaia():
     SAVE_RESULT = True
     MAX_TRIES = 3
     
-    SAVE_RESULT_PATH = f"results/workforce/workforce_{LEVEL}_pass{MAX_TRIES}_gpt4o.json"
+    SAVE_RESULT_PATH = f"results/workforce/workforce_{LEVEL}_pass{MAX_TRIES}_gpt4o_mini.json"
     test_idx = [1]
 
     if os.path.exists(f"tmp/"):
