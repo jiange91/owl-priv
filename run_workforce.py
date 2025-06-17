@@ -1,26 +1,30 @@
-import argparse
-import os
-import shutil
-from typing import List, Dict, Any
-
-from camel.models import ModelFactory
 from camel.toolkits import (
-    AsyncBrowserToolkit,
-    AudioAnalysisToolkit,
-    CodeExecutionToolkit,
-    DocumentProcessingToolkit,
-    ExcelToolkit,
-    FunctionTool,
-    ImageAnalysisToolkit,
-    SearchToolkit,
     VideoAnalysisToolkit,
+    SearchToolkit,
+    CodeExecutionToolkit,
+    ImageAnalysisToolkit,
+    DocumentProcessingToolkit,
+    AudioAnalysisToolkit,
+    AsyncBrowserToolkit,
+    ExcelToolkit,
+    FunctionTool
 )
-from camel.types import ModelPlatformType, ModelType
+from camel.models import ModelFactory
+from camel.types import(
+    ModelPlatformType,
+    ModelType
+)
+from camel.tasks import Task
 from dotenv import load_dotenv
-from loguru import logger
 
+import os
+import sys
+import json
+from typing import List, Dict, Any
+from loguru import logger
 from utils import OwlWorkforceChatAgent, OwlGaiaWorkforce
 from utils.gaia import GAIABenchmark
+import shutil
 
 load_dotenv(override=True)
 
@@ -29,43 +33,43 @@ def construct_agent_list() -> List[Dict[str, Any]]:
 
     web_model = ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
-        model_type=ModelType.GPT_4O,
+        model_type=ModelType.GPT_4O_MINI,
         model_config_dict={"temperature": 0},
     )
     
     document_processing_model = ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
-        model_type=ModelType.GPT_4O,
+        model_type=ModelType.GPT_4O_MINI,
         model_config_dict={"temperature": 0},
     )
     
     reasoning_model = ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
-        model_type=ModelType.O3_MINI,
+        model_type=ModelType.GPT_4O_MINI,
         model_config_dict={"temperature": 0},
     )
     
     image_analysis_model = ModelFactory.create( 
         model_platform=ModelPlatformType.OPENAI,
-        model_type=ModelType.GPT_4O,
+        model_type=ModelType.GPT_4O_MINI,
         model_config_dict={"temperature": 0},
     )
     
     audio_reasoning_model = ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
-        model_type=ModelType.O3_MINI,
+        model_type=ModelType.GPT_4O_MINI,
         model_config_dict={"temperature": 0},
     )
     
     web_agent_model = ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
-        model_type=ModelType.GPT_4O,
+        model_type=ModelType.GPT_4O_MINI,
         model_config_dict={"temperature": 0},
     )
     
     planning_agent_model = ModelFactory.create(
         model_platform=ModelPlatformType.OPENAI,
-        model_type=ModelType.O3_MINI,
+        model_type=ModelType.GPT_4O_MINI,
         model_config_dict={"temperature": 0},
     )
     
@@ -160,20 +164,20 @@ Here are some tips that help you perform web search:
     return agent_list
 
 
-def construct_workforce(model_name: str, port: int = 25001) -> OwlGaiaWorkforce:
-    task_agent_kwargs = {
-        "model": ModelFactory.create(
-            model_platform=ModelPlatformType.VLLM,
-            model_type=model_name,
-            model_config_dict={"temperature": 0},
-            url=f"http://localhost:{port}/v1",
-        )
-    }
+def construct_workforce() -> OwlGaiaWorkforce:
     
     coordinator_agent_kwargs = {
         "model": ModelFactory.create(
             model_platform=ModelPlatformType.OPENAI,
-            model_type=ModelType.O3_MINI,
+            model_type=ModelType.GPT_4O_MINI,
+            model_config_dict={"temperature": 0},
+        )
+    }
+    
+    task_agent_kwargs = {
+        "model": ModelFactory.create(
+            model_platform=ModelPlatformType.OPENAI,
+            model_type=ModelType.GPT_4O_MINI,
             model_config_dict={"temperature": 0},
         )
     }
@@ -181,7 +185,7 @@ def construct_workforce(model_name: str, port: int = 25001) -> OwlGaiaWorkforce:
     answerer_agent_kwargs = {
         "model": ModelFactory.create(
             model_platform=ModelPlatformType.OPENAI,
-            model_type=ModelType.GPT_4O,
+            model_type=ModelType.GPT_4O_MINI,
             model_config_dict={"temperature": 0},
         )
     }
@@ -204,53 +208,26 @@ def construct_workforce(model_name: str, port: int = 25001) -> OwlGaiaWorkforce:
     return workforce
 
 
-def evaluate_on_gaia(args):
+def execute_task(task: Task):
     
-    LEVEL = 1
-    on="valid"
-    SAVE_RESULT = True
-    MAX_TRIES = 1
-    
-    SAVE_RESULT_PATH = f"results/workforce/workforce_{LEVEL}_pass{MAX_TRIES}_qwen.json"
-    test_idx = [0, 1, 2]
-
     if os.path.exists(f"tmp/"):
         shutil.rmtree(f"tmp/")
     
-    benchmark = GAIABenchmark(
-        data_dir="data/gaia",
-        save_to=SAVE_RESULT_PATH,
+    workforce = construct_workforce()
+    
+    processed_task = workforce.process_task(
+        task, max_replanning_tries=1
     )
-    
-    workforce = construct_workforce(args.model_name, args.port)
-    
-    result = benchmark.run_workforce_with_retry(
-        workforce,
-        on=on,
-        level=LEVEL,
-        idx=test_idx,
-        save_result=SAVE_RESULT,
-        max_tries=MAX_TRIES,
-        max_replanning_tries=2
-    )
-    
-    logger.success(f"Correct: {result['correct']}, Total: {result['total']}")
-    logger.success(f"Accuracy: {result['accuracy']}")
+    try:
+        answer = workforce.get_workforce_final_answer(processed_task)
+    except Exception as e:
+        logger.error(f"Error extracting final answer: {e}")
+        answer = None
+    logger.info(f"Model answer: {answer}")
+    return answer
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--model_name",
-        type=str,
-        default="Qwen/Qwen2.5-32B-Instruct",
-        help="The opensource model to use.",
-    )
-    parser.add_argument(
-        "--port", "-p",
-        type=int,
-        default=25001,
-        help="The port used to connect to the vLLM server.",
-    )
-    args = parser.parse_args()
-    evaluate_on_gaia(args)
+    # Override default task if command line argument is provided
+    task = Task(id=str(0), content=sys.argv[1])
+    execute_task(task)
