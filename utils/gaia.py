@@ -7,7 +7,8 @@ import random
 import re
 import string
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Union, Tuple, Callable
+from typing import Any, Dict, List, Literal, Optional, Union, Tuple, Callable, Set, Iterable
+import unicodedata
 
 from tqdm import tqdm
 from camel.benchmarks import BaseBenchmark
@@ -159,6 +160,7 @@ class GAIABenchmark(BaseBenchmark):
         randomize: bool = False,
         subset: Optional[int] = None,
         idx: Optional[List[int]] = None,
+        task_ids: Optional[Set[str]] = None,
     ) -> List[Dict[str, Any]]:
         r"""Load tasks from the dataset."""
         self.load()
@@ -175,9 +177,13 @@ class GAIABenchmark(BaseBenchmark):
         )   
         
         datas = [data for data in self._data[on] if data["Level"] in levels]
-        
+        print(len(datas))
         if randomize:
             random.shuffle(datas)
+        if task_ids is not None:
+            if len(task_ids) != 0:
+                # pick only the tasks with the specified task_ids
+                datas = [data for data in datas if data["task_id"] in task_ids]
         if subset:
             datas = datas[:subset]
         
@@ -428,7 +434,9 @@ Please output with the final answer according to the requirements without any ot
         randomize: bool = False,
         subset: Optional[int] = None,
         idx: Optional[List[int]] = None,
+        task_ids: Optional[Iterable[str]] = None,
         save_result: bool = False,
+        force: bool = False,
     ) -> Dict[str, Any]:
         r"""Run the benchmark with retry mechanism.
 
@@ -442,11 +450,14 @@ Please output with the final answer according to the requirements without any ot
             randomize (bool): Whether to randomize task order. Defaults to False.
             subset (Optional[int]): Number of tasks to run. Defaults to None (all tasks).
             idx (Optional[List[int]]): Specific task indices to run. Defaults to None.
+            task_ids (Optional[List[str]]): Specific task IDs to run. Defaults to None.
             save_result (bool): Whether to save results to file. Defaults to False.
         Returns:
             Dict[str, Any]: Summary of benchmark results.
         """
-        tasks = self._load_tasks(on, level, randomize, subset, idx)
+        if task_ids is not None and not isinstance(task_ids, set):
+            task_ids = set(task_ids)
+        tasks = self._load_tasks(on, level, randomize, subset, idx, task_ids)
         
         self._results = []
         
@@ -454,7 +465,7 @@ Please output with the final answer according to the requirements without any ot
             self._results = self._load_results_from_file(self.save_to)
         
         for task in tqdm(tasks, desc=f"Running {on} set"):
-            if self._check_task_completed(task["task_id"]):
+            if not force and self._check_task_completed(task["task_id"]):
                 logger.success(f"The following task is already completed:\n task id: {task['task_id']}, question: {task['Question']}")
                 continue
 
@@ -683,6 +694,8 @@ Please output with the final answer according to the requirements without any ot
         no_spaces = re.sub(r"\s", "", input_str)
         if remove_punct:
             translator = str.maketrans("", "", string.punctuation)
-            return no_spaces.lower().translate(translator)
+            ascii_pfree = no_spaces.lower().translate(translator)
+            unicode_pfree = ''.join(c for c in ascii_pfree if unicodedata.category(c) != 'P')
+            return unicode_pfree
         else:
             return no_spaces.lower()

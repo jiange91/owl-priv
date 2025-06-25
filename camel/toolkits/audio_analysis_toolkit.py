@@ -85,6 +85,7 @@ class AudioAnalysisToolkit(BaseToolkit):
 
         file_suffix = os.path.splitext(audio_path)[1]
         file_format = file_suffix[1:]
+        duration = self.get_audio_duration(audio_path)
 
         if self.audio_reasoning_model:
             text_prompt = f"Transcribe all the content in the speech into text."
@@ -145,7 +146,6 @@ class AudioAnalysisToolkit(BaseToolkit):
             )  # type: ignore[misc]
             
             # get the duration of the audio
-            duration = self.get_audio_duration(audio_path)
 
             response: str = str(completion.choices[0].message.content)
             response += f"\n\nAudio duration: {duration} seconds"

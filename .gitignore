@@ -61,3 +61,7 @@ camel/utils/__pycache_/
 
 data/*
 
+results/
+workforce_claude.jsonl
+workforce_claude_submission.jsonl
+workforce_2_pass1_mini_l2/

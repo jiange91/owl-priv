@@ -142,3 +142,9 @@ types-requests>=2.0.0
 types-PyYAML>=6.0.0
 
 mcp[cli]
+
+# missing libs for tools
+unstructured[pptx]
+google-genai
+geopy
+biopython

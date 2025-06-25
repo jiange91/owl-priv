@@ -114,10 +114,12 @@ class DocumentProcessingToolkit(BaseToolkit):
 
 
         if self._is_webpage(document_path):
-            
-            extracted_text = self._extract_webpage_content(document_path)      
-            result_filtered = self._post_process_result(extracted_text, query)
-            return True, result_filtered
+            try:
+                extracted_text = self._extract_webpage_content(document_path)      
+                result_filtered = self._post_process_result(extracted_text, query)
+                return True, result_filtered
+            except Exception as e:
+                return False, f"Error while processing webpage using firecrawl scrape: {e}"
         
 
         else:
@@ -237,7 +239,8 @@ Query:
         if process_model is None:
             process_model = ModelFactory.create(
                 model_platform=ModelPlatformType.OPENAI,
-                model_type=ModelType.O3_MINI,
+                # model_type=ModelType.O3_MINI,
+                model_type=ModelType.GPT_4_1_MINI,
                 model_config_dict={"temperature": 0.0}
             )
             
@@ -358,24 +361,34 @@ Query:
         return extracted_text
     
 
-    @retry(RuntimeError, delay=60, backoff=2, max_delay=120)
+    # @retry(RuntimeError, delay=30, backoff=1, max_delay=60)
     def _extract_webpage_content(self, url: str) -> str:
-        api_key = os.getenv("FIRECRAWL_API_KEY")
+        api_key = os.getenv("FIRECRAWL_API_KEY", "")
+        api_url = os.getenv("FIRECRAWL_API_URL", None)
         from firecrawl import FirecrawlApp
 
         # Initialize the FirecrawlApp with your API key
-        app = FirecrawlApp(api_key=api_key)
+        app = FirecrawlApp(api_key=api_key, api_url=api_url)
 
         try:
-            data = app.crawl_url(
-                url,
+            # data = app.crawl_url(
+            #     url,
+            #     params={
+            #     'limit': 1,
+            #     'scrapeOptions': {'formats': ['markdown']}
+            # }
+        # )
+            data = app.scrape_url(
+                url=url,
                 params={
-                'limit': 1,
-                'scrapeOptions': {'formats': ['markdown']}
-            }
-        )
+                    'formats': ['markdown'],
+                }
+            )
             
         except Exception as e:
+            if 'Internal Server Error: Failed to' in str(e):
+                logger.error(f"Scraping Error: {e}")
+                raise RuntimeError(f"Failed with: {e}")
             if '403' in str(e):
                 logger.error(f"Error: {e}")
                 return e
@@ -393,7 +406,7 @@ Query:
                 raise e
 
         logger.debug(f"Extracted data from {url} using firecrawl: {data}")
-        if len(data['data']) == 0:
+        if False and len(data['data']) == 0:
             if data['success'] == True:
                 logger.debug(f"Trying to use html2text to get the text.")
                 # try using html2text to get the text
@@ -408,7 +421,7 @@ Query:
             else:
                 return "Error while crawling the webpage."
 
-        return str(data['data'][0]['markdown'])
+        return str(data['markdown'])
     
 
     def _download_file(self, url: str):
